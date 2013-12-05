@@ -82,6 +82,7 @@ module NewRelicApi
   ACCOUNT_RESOURCE_PATH = '/api/v1/accounts/:account_id/' #:nodoc:
   ACCOUNT_AGENT_RESOURCE_PATH = ACCOUNT_RESOURCE_PATH + 'agents/:agent_id/' #:nodoc:
   ACCOUNT_APPLICATION_RESOURCE_PATH = ACCOUNT_RESOURCE_PATH + 'applications/:application_id/' #:nodoc:
+  ACCOUNT_SERVER_RESOURCE_PATH = ACCOUNT_RESOURCE_PATH + 'servers/:server_id/' #:nodoc:
 
   module AccountResource #:nodoc:
     def account_id
@@ -98,6 +99,22 @@ module NewRelicApi
 
   module AgentResource #:nodoc:
     include ActiveResourceAssociations
+  end
+
+  class ApplicationDashboard < BaseResource
+    self.prefix = ""
+
+    def element_path
+      super.gsub(/\.xml/, "")
+    end
+
+    def new_element_path
+      super.gsub(/\.xml/, "")
+    end
+
+    def collection_path
+      super.gsub(/\.xml/, "")
+    end
   end
 
   # An application has many:
@@ -125,7 +142,21 @@ module NewRelicApi
         super.merge(:application_id => cluster_agent_id)
       end
     end
+  end
 
+
+  # A server has many:
+  # +threshold_values+:: the health indicators for this application.
+  class Server < BaseResource
+    include AccountResource
+
+    has_many :thresholds
+
+    self.prefix = ACCOUNT_RESOURCE_PATH
+
+    def query_params#:nodoc:
+      account_query_params(:server_id => id)
+    end
   end
 
   # A threshold value represents a single health indicator for an application such as CPU, memory or response time.
@@ -165,6 +196,11 @@ module NewRelicApi
     end
   end
 
+  class Threshold < BaseResource
+    self.prefix = ACCOUNT_SERVER_RESOURCE_PATH
+  end
+
+
   # An account contains your basic account information.
   #
   # Accounts have many
@@ -177,6 +213,7 @@ module NewRelicApi
   #
   class Account < BaseResource
     has_many :applications
+    has_many :servers
     has_many :account_views
 
     def query_params #:nodoc:
@@ -207,7 +244,7 @@ module NewRelicApi
   # This model is used to mark production deployments in RPM
   # Only create is supported.
   # == Options
-  # 
+  #
   # Exactly one of the following is required:
   # * <tt>app_name</tt>: The value of app_name in the newrelic.yml file used by the application.  This may be different than the label that appears in the RPM UI.  You can find the app_name value in RPM by looking at the label settings for your application.
   # * <tt>application_id</tt>: The application id, found in the URL when viewing the application in RPM.
@@ -223,8 +260,7 @@ module NewRelicApi
   #
   #   NewRelicApi::Deployment.create :app_name => "My Application", :description => "Update production", :user => "Big Mike"
   #
-  class Deployment < BaseResource
-  end
+  class Deployment < BaseResource; end
 
   class Subscription < BaseResource
     def query_params(extra_params = {}) #:nodoc:
